@@ -76,8 +76,10 @@ struct FCBuffer *RunFCCoarsening(struct FCBuffer *CurrentFC, int layer_ctr){
         */
         std::vector<float> Weight(CurrentFC->Vertecies.size(), 0);
         // std::vector<float> MatchWeight(NumNewVertecies, 0);
+        // std::vector<float> MatchWeight(NumNewVertecies, 0);
         float MaxWeightValue = INT16_MIN;
         int MaxWeightVertecies = -1;
+        int MaxNetListCount;
 
         // match and unmatch both consider
         for(int i = 0; i < (int)HyperGraph[Index].size(); i++){
@@ -97,9 +99,43 @@ struct FCBuffer *RunFCCoarsening(struct FCBuffer *CurrentFC, int layer_ctr){
                             if(CurrentWeight > MaxWeightValue){
                                 MaxWeightValue = CurrentWeight;
                                 MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                                // find vertex size equal two count
+                                // int NetListCount = 0;
+                                // for(int s = 0; s < (int)HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]].size(); s++){
+                                //     if(CurrentFC->NetList[HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]][s]].size() <= counter){
+                                //         NetListCount++;
+                                //     }
+                                // }
+                                // MaxNetListCount = NetListCount;
                             }
-                            else if(MatchVertecies[CurrentFC->NetList[HyperGraph[Index][i]][j]] == false)
-                                MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                            else if(MatchVertecies[CurrentFC->NetList[HyperGraph[Index][i]][j]] == false){
+                                // if(MatchVertecies[MaxWeightVertecies] == true && HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]].size() < HyperGraph[MaxWeightVertecies].size())
+                                //     MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                                if(HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]].size() < HyperGraph[MaxWeightVertecies].size())
+                                    MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                                // if(MatchVertecies[MaxWeightVertecies] != false)
+                                //     MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                            }
+                            // else if(HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]].size() < HyperGraph[MaxWeightVertecies].size())
+                            //     MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                            // else{
+                            //     // find vertex size
+                            //     // printf("a\n");
+                            //     int NetListCount = 0;
+                            //     for(int s = 0; s < (int)HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]].size(); s++){
+                            //         if(CurrentFC->NetList[HyperGraph[CurrentFC->NetList[HyperGraph[Index][i]][j]][s]].size() <= counter){
+                            //             NetListCount++;
+                            //         }
+                            //     }
+                            //     if(NetListCount > MaxNetListCount){
+                            //         // printf("a\n");
+                            //         MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                            //     }
+                            //     // else if(NetListCount == MaxNetListCount && MatchVertecies[CurrentFC->NetList[HyperGraph[Index][i]][j]] == false){
+                            //     //     // printf("a\n");
+                            //     //     MaxWeightVertecies = CurrentFC->NetList[HyperGraph[Index][i]][j];
+                            //     // }
+                            // }
                         }
                     }
                 }
@@ -144,8 +180,21 @@ struct FCBuffer *RunFCCoarsening(struct FCBuffer *CurrentFC, int layer_ctr){
         }
     }
 
+    while(NumUnmatchVertecies >= 0){
+        if(MatchVertecies[UnmatchVertecies[NumUnmatchVertecies]] == false){
+            std::vector<int> NewVertecies;
+            NewVertecies.push_back(UnmatchVertecies[NumUnmatchVertecies]);
+            nxtFC->Vertecies.push_back(NewVertecies);
+            nxtFC->VerteciesSize.push_back(CurrentFC->VerteciesSize[UnmatchVertecies[NumUnmatchVertecies]]);
+            RecordVerteciesNewPlace[UnmatchVertecies[NumUnmatchVertecies]] = NumNewVertecies;
+            NumNewVertecies++;
+            MatchVertecies[UnmatchVertecies[NumUnmatchVertecies]] = true;
+        }
+        NumUnmatchVertecies--;
+    }
+
     counter+=RATIOACCELERATOR;
-    printf("counter is %f                                                        |\n", counter);
+    printf("counter is %5f                                                      |\n", counter);
 
     // make sure all origin unmatch vertecies is match
     for(int i = 0; i < (int)MatchVertecies.size(); i++){
@@ -178,7 +227,7 @@ struct FCBuffer *RunFCCoarsening(struct FCBuffer *CurrentFC, int layer_ctr){
     return nxtFC;
 }
 
-struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize){
+struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize, float IterationRate){
     // create Temp way buffer
     struct WayBuffer *WayData = new struct WayBuffer;
     // Init WayData
@@ -193,8 +242,8 @@ struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize){
     int MinCutIncreaseIndex, TempCut;
     int MinCut = 0;
     int IterationTime = 0;
-    int BottomLimit = (WayData->BottomSize + WayData->TopSize) * Mratio;
-    int BottomLimitest = (WayData->BottomSize + WayData->TopSize) * Bratio;
+    int BottomLimit = (WayData->BottomSize + WayData->TopSize) * (Bratio+IterationRate);
+    int BottomLimitest = (WayData->BottomSize + WayData->TopSize) * (Bratio+IterationRate);
     int CurrentSize = WayData->BottomSize + WayData->TopSize;
     while(CurrentSize > BottomLimit){
         float CutSizeRatio = INT16_MAX;
@@ -228,11 +277,24 @@ struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize){
                     MinCutIncreaseIndex = i;
                     MinCut = TempCut;
                 }
+                else if(TempCutSize == CutSizeRatio && CurrentFC->VerteciesSize[i] > CurrentFC->VerteciesSize[MinCutIncreaseIndex]){
+                    // printf("%ld\n", CurrentFC->VerteciesSize[i]);
+                    // printf("%ld\n", CurrentFC->VerteciesSize[MinCutIncreaseIndex]);
+                    // printf("fuck\n");
+                    MinCutIncreaseIndex = i;
+                    MinCut = TempCut;
+                }
+                // if(MinCut > TempCut){
+                //     MinCut = TempCut;
+                //     MinCutIncreaseIndex = i;
+                // }
+                // else if(MinCut == TempCut && CurrentFC->VerteciesSize[i] > CurrentFC->VerteciesSize[MinCutIncreaseIndex])
+                //     MinCutIncreaseIndex = i;
                 WayData->Bottom[i] = true;
                 WayData->Top[i] = false;
             }
         }
-        if(CutSizeRatio == INT16_MAX)
+        if(MinCut == INT16_MAX)
             break;
         else{
             WayData->Bottom[MinCutIncreaseIndex] = false;
@@ -242,6 +304,7 @@ struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize){
             Cut += MinCut;
             CurrentSize -= CurrentFC->VerteciesSize[MinCutIncreaseIndex];
         }
+        // printf("Cut is %d Size is %d\n", Cut, WayData->BottomSize);
     }
 
     printf("\n====================\n");
@@ -274,92 +337,263 @@ int EvalCut(struct FCBuffer *CurrentFC, struct WayBuffer *WayData){
 }
 
 struct WayBuffer FM(struct FCBuffer *CurrentFC, struct WayBuffer *WayData, int layer_ctr){
+    // Record Time
+    static int count = 0;
+    // find best partition
     struct WayBuffer BestWayData = *WayData;
-    static int count = 1;
     // limit iteration times
-    if(layer_ctr == Layer_ctr)
-        count = 1;
     int MaxGain = INT32_MIN;
+    int PreCut = -1;
     int Iteration = 0;
-    int IterationTime = FMLIMIT / count;
-    count+=SLOPE;
+    int IterationTime = FMLIMIT / (count+1);
+    std::vector<bool> IsVertexPass(CurrentFC->Vertecies.size(), false);
+    std::vector<int> VertexGain(CurrentFC->Vertecies.size(), 0);
+    // find VertexGain
+    for(int i = 0; i < (int)CurrentFC->Vertecies.size(); i++){
+        int Gain = 0;
+        // evaluate gain => gain is old cut - new cut
+        for(int j = 0; j < (int)CurrentFC->HyperGraph[i].size(); j++){
+            int NumTop = 0;
+            int NumBottom = 0;
+            for(int k = 0; k < (int)CurrentFC->NetList[CurrentFC->HyperGraph[i][j]].size(); k++){
+                if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[i][j]][k]] == true)
+                    NumBottom++;
+                else
+                    NumTop++;
+                if(NumBottom > 1 && NumTop > 1)
+                    break;
+            }
+            // means bottom change top
+            if(WayData->Bottom[i] == true){
+                if(NumBottom == 1 && NumTop > 0)
+                    Gain++;
+                else if(NumTop == 0 && NumBottom > 1)
+                    Gain--;
+            }
+            // means top change bottom
+            else if(WayData->Top[i] == true){
+                if(NumTop == 1 && NumBottom > 0)
+                    Gain++;
+                else if(NumBottom == 0 && NumTop > 1)
+                    Gain--;
+            }
+        }
+        VertexGain[i] = Gain;
+    }
+    // start FM
     while(Iteration < IterationTime){
-        // gain is old cut - new cut
-        std::vector<int> GainBuffer;
-        struct WayBuffer TempWayData = *WayData;
         Iteration++;
+        int MaxGainVertex;
+        struct WayBuffer TempWayData = *WayData;
         MaxGain = INT32_MIN;
         // find MaxGain
         for(int i = 0; i < (int)CurrentFC->Vertecies.size(); i++){
-            int Gain = 0;
-            // evaluate gain
-            for(int j = 0; j < (int)CurrentFC->HyperGraph[i].size(); j++){
+            if(IsVertexPass[i] == false && VertexGain[i] > MaxGain){
+                if(WayData->Bottom[i] == true && (float) (WayData->BottomSize-CurrentFC->VerteciesSize[i]) / (float)(WayData->BottomSize + WayData->TopSize) > Bratio &&
+                  (float) (WayData->BottomSize-CurrentFC->VerteciesSize[i]) / (float)(WayData->BottomSize + WayData->TopSize) < Tratio){
+                    MaxGain = VertexGain[i];
+                    MaxGainVertex = i;
+                }
+                else if(WayData->Top[i] == true && (float) (WayData->TopSize-CurrentFC->VerteciesSize[i]) / (float)(WayData->BottomSize + WayData->TopSize) > Bratio &&
+                  (float) (WayData->TopSize-CurrentFC->VerteciesSize[i]) / (float)(WayData->BottomSize + WayData->TopSize) < Tratio){
+                    MaxGain = VertexGain[i];
+                    MaxGainVertex = i;               
+                }
+            }
+            // else if(IsVertexPass[i] == false && VertexGain[i] == MaxGain){
+            //     if(WayData->Bottom[i] == true && (float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) > Mratio)
+            //         MaxGainVertex = i;
+            //     else if(WayData->Top[i] == true && (float) WayData->TopSize / (float)(WayData->BottomSize + WayData->TopSize) > Mratio)
+            //         MaxGainVertex = i;
+            //     // printf("%ld\n", CurrentFC->VerteciesSize[i]);             
+            // }
+            else if(IsVertexPass[i] == false && VertexGain[i] == MaxGain){
+                if(WayData->Bottom[i] == true && (float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) > Mratio)
+                    MaxGainVertex = i;
+                else if(WayData->Top[i] == true && (float) WayData->TopSize / (float)(WayData->BottomSize + WayData->TopSize) > Mratio)
+                    MaxGainVertex = i;
+                // printf("%ld\n", CurrentFC->VerteciesSize[i]);             
+            }
+        }
+        if(MaxGain == INT32_MIN)
+            continue;
+        int MyCompute = WayData->Cut - MaxGain;
+        // printf("MaxGain %d\n", MaxGain);
+        // printf("Cut is %d\n", WayData->Cut);
+        if(WayData->Bottom[MaxGainVertex] == true){
+            WayData->Bottom[MaxGainVertex] = false;
+            WayData->Top[MaxGainVertex] = true;
+            // update Top and Bottom size
+            WayData->BottomSize -= CurrentFC->VerteciesSize[MaxGainVertex];
+            WayData->TopSize += CurrentFC->VerteciesSize[MaxGainVertex];
+        }
+        else{
+            WayData->Bottom[MaxGainVertex] = true;
+            WayData->Top[MaxGainVertex] = false;
+            // update Top and Bottom size
+            WayData->BottomSize += CurrentFC->VerteciesSize[MaxGainVertex];
+            WayData->TopSize -= CurrentFC->VerteciesSize[MaxGainVertex];
+        }
+        // Is area over balance?
+        if((float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) > Bratio &&
+        (float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) < Tratio){
+            int OrgCut = WayData->Cut;
+            WayData->Cut = EvalCut(CurrentFC, WayData);
+            // printf("Origin Cut is %d, Real Cut is %d\n", OrgCut-VertexGain[MaxGainVertex], WayData->Cut);
+            if(WayData->Cut < BestWayData.Cut)
+                BestWayData = *WayData;
+            // update relate gain
+            for(int i = 0; i < (int)CurrentFC->HyperGraph[MaxGainVertex].size(); i++){
                 int NumTop = 0;
                 int NumBottom = 0;
-                for(int k = 0; k < (int)CurrentFC->NetList[CurrentFC->HyperGraph[i][j]].size(); k++){
-                    if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[i][j]][k]] == true)
+                for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                    if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
                         NumBottom++;
                     else
                         NumTop++;
-                    if(NumBottom > 1 && NumTop > 1)
-                        break;
                 }
-                // means bottom change top
-                if(WayData->Bottom[i] == true){
-                    if(NumBottom == 1 && NumTop > 0)
-                        Gain++;
-                    else if(NumTop == 0 && NumBottom > 1)
-                        Gain--;
+                if((NumBottom == 2 && NumTop == 0) || (NumTop == 2 && NumBottom == 0)){
+                    for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++)
+                        VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] -= 2;
                 }
-                // means top change bottom
-                else if(WayData->Top[i] == true){
-                    if(NumTop == 1 && NumBottom > 0)
-                        Gain++;
-                    else if(NumBottom == 0 && NumTop > 1)
-                        Gain--;
+                else if(NumBottom == 1 && NumTop == 1){
+                    for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++)
+                        VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] += 2;
+                }
+                else if(NumBottom == 2 && NumTop == 1){
+                    if(WayData->Bottom[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                            else if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                    else{
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                }
+                else if(NumTop == 2 && NumBottom == 1){
+                    if(WayData->Bottom[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                    else{
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                            else if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                }
+                else if((NumBottom == 0 && NumTop > 2) || (NumTop == 0 && NumBottom > 2)){
+                    for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++)
+                        VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                }
+                else if(NumBottom == 1 && NumTop > 2){
+                    if(WayData->Bottom[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++)
+                            VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                    }
+                    else if(WayData->Top[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                }
+                else if(NumTop == 1 && NumBottom > 2){
+                    if(WayData->Top[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++)
+                            VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                    }
+                    else if(WayData->Bottom[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]++;
+                        }
+                    }
+                }
+                else if(NumTop == 2 && NumBottom >= 2){
+                    if(WayData->Top[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                        }
+                    }
+                    else if(NumBottom == 2){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                        }
+                    }
+                }
+                else if(NumBottom == 2 && NumTop >= 2){
+                    if(WayData->Bottom[MaxGainVertex] == true){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Bottom[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                        }
+                    }
+                    else if(NumTop == 2){
+                        for(int j = 0; j < (int)CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size(); j++){
+                            if(WayData->Top[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]] == true)
+                                VertexGain[CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]][j]]--;
+                        }
+                    }
                 }
             }
-            // compare with MaxGain
-            if(Gain == MaxGain)
-                GainBuffer.push_back(i);
-            else if(Gain > MaxGain){
-                MaxGain = Gain;
-                GainBuffer.clear();
-                GainBuffer.push_back(i);
-            }
+            // printf("My compute Cut is %d and real Cut is %d ", MyCompute, WayData->Cut);
+            // for(int i = 0; i < (int)CurrentFC->HyperGraph[MaxGainVertex].size(); i++){
+            //     printf("%d ", CurrentFC->NetList[CurrentFC->HyperGraph[MaxGainVertex][i]].size());
+            // }
+            // printf("\n");
         }
-        for(int i = 0; i < (int)GainBuffer.size(); i++){
-             if(WayData->Bottom[GainBuffer[i]] == true){
-                WayData->Bottom[GainBuffer[i]] = false;
-                WayData->Top[GainBuffer[i]] = true;
+        else{
+            // change back
+            if(WayData->Bottom[MaxGainVertex] == true){
+                WayData->Bottom[MaxGainVertex] = false;
+                WayData->Top[MaxGainVertex] = true;
+                // update Top and Bottom size
+                WayData->BottomSize -= CurrentFC->VerteciesSize[MaxGainVertex];
+                WayData->TopSize += CurrentFC->VerteciesSize[MaxGainVertex];
             }
             else{
-                WayData->Bottom[GainBuffer[i]] = true;
-                WayData->Top[GainBuffer[i]] = false;
+                WayData->Bottom[MaxGainVertex] = true;
+                WayData->Top[MaxGainVertex] = false;
+                // update Top and Bottom size
+                WayData->BottomSize += CurrentFC->VerteciesSize[MaxGainVertex];
+                WayData->TopSize -= CurrentFC->VerteciesSize[MaxGainVertex];
             }
         }
-        // evaluate new WayData Top and Bottom Size
-        WayData->TopSize = 0;
-        WayData->BottomSize = 0;
-        for(int i = 0; i < (int)WayData->Bottom.size(); i++){
-            if(WayData->Bottom[i] == true)
-                WayData->BottomSize += CurrentFC->VerteciesSize[i];
-            else
-                WayData->TopSize += CurrentFC->VerteciesSize[i];
-        }
-        // Compute new cut
-        WayData->Cut = EvalCut(CurrentFC, WayData);
-        if((float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) > Bratio &&
-           (float) WayData->BottomSize / (float)(WayData->BottomSize + WayData->TopSize) < Tratio && BestWayData.Cut > WayData->Cut)
-            BestWayData = *WayData;
+        // update VertexPass
+        IsVertexPass[MaxGainVertex] = true;
+        // It's same with preCut ?
+        // if(WayData->Cut > BestWayData.Cut)
+        //     SameCutCount++;
+        // else{
+        //     SameCutCount = 0;
+        // }
+        // printf("%d\n", SameCutCount);
+        // printf("%d\n", PreCut);
     }
 
     printf("\n====================\n");
-    printf("[UnCoarsening %2d Times] =================================================\n", (count-1) / SLOPE);
-    printf("Since FM Iteration %3d times ,BestMinCut is %4d                        |\n", IterationTime, BestWayData.Cut);
+    printf("[UnCoarsening %2d Times] =================================================\n", count);
+    printf("Since FM %3d Times Iteration ,BestMinCut is %4d                            |\n", IterationTime, BestWayData.Cut);
     printf("[BottomSize / (TopSize + BottomSize)] => %5d / %5d = %.5f        |\n", BestWayData.BottomSize, BestWayData.BottomSize + BestWayData.TopSize
     , (float)BestWayData.BottomSize / (float)(BestWayData.BottomSize + BestWayData.TopSize));
     printf("=========================================================================\n");
+    if(layer_ctr == 0)
+        count = 0;
+    else
+        count++;
     return BestWayData;
 }
 

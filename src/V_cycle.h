@@ -22,7 +22,7 @@
 #define SLOPE 2
 
 // how many time will bisection run?
-#define Nruns 5
+#define Nruns 1
 
 // Current excute case
 #define CurrentCase CASE3
@@ -40,7 +40,7 @@ struct FCBuffer{
 
 struct FCBuffer *RunCoarsening(struct FCBuffer *CurrentFC, int layer_ctr);
 struct FCBuffer *RunFCCoarsening(struct FCBuffer *CurrentFC, int layer_ctr);
-struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize);
+struct WayBuffer *InitPartition(struct FCBuffer *CurrentFC, int TotalSize, float IterationRate);
 struct WayBuffer FM(struct FCBuffer *CurrentFC, struct WayBuffer *WayData, int layer_ctr);
 int EvalCut(struct FCBuffer *CurrentFC, struct WayBuffer *WayData);
 void PrintFinalWayResult(struct WayBuffer *WayData);

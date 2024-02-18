@@ -79,7 +79,7 @@ int main() {
             int TotalSize = 0;
             for(int i = 0; i < (int)CurrentFC->Vertecies.size(); i++){
                 TotalSize += CurrentFC->VerteciesSize[i];
-                printf("Vertecies[%d] = %d\n", i, CurrentFC->VerteciesSize[i]);
+                // printf("Vertecies[%d] = %d\n", i, CurrentFC->VerteciesSize[i]);
             }
             if(TotalSize != data->Num_Edge)
                 printf("Real Vertecies Size is %d, not %d\n", data->Num_Edge, TotalSize);
@@ -92,39 +92,45 @@ int main() {
             std::cout << "Total Run Time is : " << elapsed_time.count() << " second " << std::endl;
 
             // Init Way Partiton 
-            struct WayBuffer *WayData;
-            WayData = InitPartition(CurrentFC, TotalSize);
-            // PrintFinalWayResult(WayData);
+            struct FCBuffer *TempCurrentFC = CurrentFC;
+            int TempLayerCtr = layer_ctr;
+            for(int i = 0;i < 5; i++){
+                CurrentFC = TempCurrentFC;
+                layer_ctr = TempLayerCtr;
+                struct WayBuffer *WayData;
+                WayData = InitPartition(CurrentFC, TotalSize, 0.01*i);
+                // PrintFinalWayResult(WayData);
 
-            // start use FM algorithm to uncoarsening
-            while(layer_ctr >= 0){
-                *WayData = FM(CurrentFC, WayData, layer_ctr);
-                layer_ctr--;
+                // start use FM algorithm to uncoarsening
+                while(layer_ctr >= 0){
+                    *WayData = FM(CurrentFC, WayData, layer_ctr);
+                    layer_ctr--;
+                    // *WayData = K_LIN(CurrentFC, WayData);
+                    // first layer didn't updata WayData
+                    if(layer_ctr < 0)
+                        break;
+                    else
+                        // Update Way Data to previous vertecies format
+                        ChangeWayData(CurrentFC, WayData);
+                    // change CurrentFC to previous FC
+                    CurrentFC = CurrentFC->preFC;
+                }
+
+                // Use K-Lin Optimal Final solution
                 // *WayData = K_LIN(CurrentFC, WayData);
-                // first layer didn't updata WayData
-                if(layer_ctr < 0)
-                    break;
+
+                WayData->Cut = EvalCut(CurrentFC, WayData);
+                printf("\n********************\n");
+                printf("* Final Cut is %3d *\n", WayData->Cut);
+                printf("********************\n");
+
+                if(BestWayData == NULL)
+                    BestWayData = WayData;
+                else if(WayData->Cut < BestWayData->Cut)
+                    BestWayData = WayData;
                 else
-                    // Update Way Data to previous vertecies format
-                    ChangeWayData(CurrentFC, WayData);
-                // change CurrentFC to previous FC
-                CurrentFC = CurrentFC->preFC;
+                    delete WayData;
             }
-
-            // Use K-Lin Optimal Final solution
-            // *WayData = K_LIN(CurrentFC, WayData);
-
-            WayData->Cut = EvalCut(CurrentFC, WayData);
-            printf("\n********************\n");
-            printf("* Final Cut is %3d *\n", WayData->Cut);
-            printf("********************\n");
-
-            if(BestWayData == NULL)
-                BestWayData = WayData;
-            else if(WayData->Cut < BestWayData->Cut)
-                BestWayData = WayData;
-            else
-                delete WayData;
             count++;
         }
 
