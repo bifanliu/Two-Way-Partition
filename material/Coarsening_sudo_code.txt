@@ -1,0 +1,21 @@
+for each vertex in HyperGraph[Index]:
+    if size of NetList[vertex] is less than or equal to counter and greater than 1:
+        for each neighbor in NetList[vertex]:
+            if neighbor is not equal to Index:
+                // record current vertex weight
+                CurrentWeight = Weight[neighbor] + (1 / NetList[vertex].size())
+
+                // compare if currentweight bigger than maxweightvalue and change maxweightvertices
+                // if equal with maxweightvalue and compare is match or not or Hypergraph size etc
+                if neighbor is not equal to Index and CurrentWeight >= MaxWeightValue:
+                    if CurrentWeight > MaxWeightValue:
+                        MaxWeightValue = CurrentWeight
+                        MaxWeightVertecies = neighbor
+                    else if MatchVertecies[neighbor] is false and MatchVertecies[MaxWeightVertecies] is true and size of HyperGraph[neighbor] is less than size of HyperGraph[MaxWeightVertecies]:
+                            MaxWeightVertecies = neighbor
+                    else if MatchVertecies[MaxWeightVertecies] is false and MatchVertecies[neighbor] is false and size of HyperGraph[neighbor] is less than size of HyperGraph[MaxWeightVertecies]:
+                        MaxWeightVertecies = neighbor
+                    else if MatchVertecies[MaxWeightVertecies] is true and MatchVertecies[neighbor] is true and size of HyperGraph[neighbor] is less than size of HyperGraph[MaxWeightVertecies]:
+                        MaxWeightVertecies = neighbor
+                    else if MatchVertecies[MaxWeightVertecies] is true and MatchVertecies[neighbor] is true and size of VerteciesSize[neighbor] is less than size of VerteciesSize[MaxWeightVertecies]:
+                        MaxWeightVertecies = neighbor
