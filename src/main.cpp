@@ -36,7 +36,9 @@ int main() {
             HyperGraph[FirstLayer->NetList[i][j]].push_back(i);
     }
     FirstLayer->HyperGraph = HyperGraph;
-   std::ofstream SaveFinalCut("Final_Cut.txt");
+
+    // save after iteration best net cut
+    std::ofstream SaveFinalCut("Final_Cut.txt");
 
     int count = 0;
     int totalrun = 0;
@@ -94,43 +96,37 @@ int main() {
             // Init Way Partiton 
             struct FCBuffer *TempCurrentFC = CurrentFC;
             int TempLayerCtr = layer_ctr;
-            for(int i = 0;i < 5; i++){
-                CurrentFC = TempCurrentFC;
-                layer_ctr = TempLayerCtr;
-                struct WayBuffer *WayData;
-                WayData = InitPartition(CurrentFC, TotalSize, 0.01*i);
-                // PrintFinalWayResult(WayData);
+            CurrentFC = TempCurrentFC;
+            layer_ctr = TempLayerCtr;
+            struct WayBuffer *WayData;
+            WayData = InitPartition(CurrentFC, TotalSize, 0.05);
+            // PrintFinalWayResult(WayData);
 
-                // start use FM algorithm to uncoarsening
-                while(layer_ctr >= 0){
-                    *WayData = FM(CurrentFC, WayData, layer_ctr);
-                    layer_ctr--;
-                    // *WayData = K_LIN(CurrentFC, WayData);
-                    // first layer didn't updata WayData
-                    if(layer_ctr < 0)
-                        break;
-                    else
-                        // Update Way Data to previous vertecies format
-                        ChangeWayData(CurrentFC, WayData);
-                    // change CurrentFC to previous FC
-                    CurrentFC = CurrentFC->preFC;
-                }
-
-                // Use K-Lin Optimal Final solution
-                // *WayData = K_LIN(CurrentFC, WayData);
-
-                WayData->Cut = EvalCut(CurrentFC, WayData);
-                printf("\n********************\n");
-                printf("* Final Cut is %3d *\n", WayData->Cut);
-                printf("********************\n");
-
-                if(BestWayData == NULL)
-                    BestWayData = WayData;
-                else if(WayData->Cut < BestWayData->Cut)
-                    BestWayData = WayData;
+            // start use FM algorithm to uncoarsening
+            while(layer_ctr >= 0){
+                *WayData = FM(CurrentFC, WayData, layer_ctr);
+                layer_ctr--;
+                // first layer didn't updata WayData
+                if(layer_ctr < 0)
+                    break;
                 else
-                    delete WayData;
+                    // Update Way Data to previous vertecies format
+                    ChangeWayData(CurrentFC, WayData);
+                // change CurrentFC to previous FC
+                CurrentFC = CurrentFC->preFC;
             }
+
+            WayData->Cut = EvalCut(CurrentFC, WayData);
+            // printf("\n********************\n");
+            // printf("* Final Cut is %3d *\n", WayData->Cut);
+            // printf("********************\n");
+
+            if(BestWayData == NULL)
+                BestWayData = WayData;
+            else if(WayData->Cut < BestWayData->Cut)
+                BestWayData = WayData;
+            else
+                delete WayData;
             count++;
         }
 
@@ -141,9 +137,12 @@ int main() {
             SaveFinalCut <<  BestWayData->Cut << std::endl; 
     
         // Output Final Result
-        printf("\n********************\n");
-        printf("* Final Best Cut is %3d *\n", BestWayData->Cut);
-        printf("********************\n");
+        printf("\n*****************************************************************************");
+        printf("\n Num of Vtx:%7d, Num of Hedges: %7d, Num of Ways: %2d, UBfactor: 0.05\n", data->Num_Edge, data->Num_Net, 2);
+        printf("----------------------------------------------------------------------\n");
+        printf(" Summary of 2-way partition: \n");
+        printf("           Hyperedge Cut  %10d (minmize)\n\n", BestWayData->Cut);
+        // printf("********************\n");
         totalrun++;
         OutputFinalResult(OUTPUTNAME, BestWayData);
     }
@@ -161,7 +160,9 @@ int main() {
 
     // evaluate total cost time
     std::chrono::duration<double> elapsed_time = end_time - start_time;
-    std::cout << "Total Run Time is : " << elapsed_time.count() << " second " << std::endl;
+    printf("Timing Information----------------------------------------------------\n");
+    std::cout << "Total Run Time is :      " << elapsed_time.count() << " second " << std::endl;
+    printf("*****************************************************************************\n");
 
 
     return 0;

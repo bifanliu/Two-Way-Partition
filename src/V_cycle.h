@@ -14,18 +14,19 @@
 #define Bratio 0.45 // Bottom ratio
 
 // By limiting the coarsening of the netlist at this stage, the size of the for loop can be used to achieve acceleration.
-#define RATIO 2 // more big cut more big
+#define RATIO 2 // more big cut more big and more unstable
 #define RATIOACCELERATOR 1
 
 // for FM paremeter if uncoarsening layer more big then FC loop more small because let program excute speed more quick
 #define FMLIMIT 200
+// FM times slope ex: if first FM iteration is 200 than next is 200 / 2 next is 200 / 3 ......
 #define SLOPE 2
 
-// how many time will bisection run?
+// how many time will run in one RUN?
 #define Nruns 1
 
 // Current excute case
-#define CurrentCase CASE3
+#define CurrentCase CASE2
 
 #define RUNS 100
 
